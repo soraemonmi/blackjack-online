@@ -69,4 +69,4 @@ Health Check Path:
 - 画面端にメニュー・リスタート・退出だけを残します。
 - BET/HIT/STAND/DOUBLE DOWN操作欄は画面下部に固定し、カードが隠れにくいスマホUIにしています。
 - カードは状態が変わったときだけDOMを更新し、再描画によるちらつきを防止しています。
-- BGMはWeb Audioの簡易音ではなく、同梱の`public/bgm.wav`をループ再生します。BGMボタンはユーザー操作で開始します。
+- BGMはWeb Audioの簡易音ではなく、同梱の`public/bgm.mp3`をループ再生します。BGMボタンはユーザー操作で開始します。
