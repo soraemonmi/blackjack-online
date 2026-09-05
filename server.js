@@ -122,7 +122,7 @@ function visibleState(room, viewer) {
     .filter(u => u.role === 'player')
     .map(u => {
       const mine = u.id === viewer.id;
-      const revealAll = isObserver || room.cardsRevealed || ['reveal','dealer','result'].includes(room.phase);
+      const revealAll = isObserver || ['reveal','dealer','result'].includes(room.phase);
       const pending = room.pendingActions.get(u.id) || { action: null, ok: false };
       return {
         id: u.id,
@@ -137,7 +137,7 @@ function visibleState(room, viewer) {
       };
     });
 
-  const dealerReveal = isObserver || dealerOwner || room.phase === 'dealer' || room.phase === 'result';
+  const dealerReveal = isObserver || dealerOwner || ['reveal','dealer','result'].includes(room.phase);
   return {
     type: 'state',
     roomCode: room.code,
@@ -250,7 +250,7 @@ function validAction(room, p, action) {
 }
 
 function allPlayersReady(room) {
-  const players = activePlayers(room).filter(p => p.hand.length && p.chips >= 0);
+  const players = activePlayers(room).filter(p => p.hand.length && p.status === 'waiting' && p.chips >= 0);
   return players.length > 0 && players.every(p => {
     const v = room.pendingActions.get(p.id);
     return v && v.action && v.ok;
@@ -277,7 +277,6 @@ function resolveDecision(room) {
 
   // The first collective confirmation reveals everyone's cards.
   // A player who chose HIT remains eligible for another collective decision.
-  const wasAlreadyRevealed = room.cardsRevealed;
   room.cardsRevealed = true;
   room.phase = 'reveal';
   broadcastState(room);
@@ -314,6 +313,7 @@ function resolveDecision(room) {
   broadcastState(room);
 
   if (needsAnotherDecision) {
+    room.cardsRevealed = false;
     room.phase = 'decision';
     for (const p of activePlayers(room)) {
       if (p.status === 'waiting' && p.hand.length) room.pendingActions.set(p.id, { action: null, ok: false });
@@ -439,7 +439,7 @@ function joinRoom(ws, data) {
     role: isSpectator ? 'spectator' : 'player',
     ws,
     connected:true,
-    chips: 10000,
+    chips: room.settings.initialCoins,
     hand: [],
     status: ''
   };
@@ -485,8 +485,10 @@ function handle(ws, msg) {
     if (u.id !== room.hostId || room.phase !== 'lobby' && room.phase !== 'gameover') return send(u, {type:'error', error:'ホストのみ変更できます'});
     const target = room.users.get(data.userId);
     if (!target) return;
-    if (data.role === 'spectator') target.role = 'spectator';
-    else if (data.role === 'player') target.role = 'player';
+    if (data.role === 'spectator') {
+      target.role = 'spectator';
+      if (room.settings.dealerId === target.id) room.settings.dealerId = null;
+    } else if (data.role === 'player') target.role = 'player';
     broadcastState(room);
     return;
   }
@@ -544,7 +546,7 @@ function disconnectUser(ws) {
   const room = rooms.get(ws.roomCode);
   if (!room) return;
   const u = room.users.get(ws.userId);
-  if (!u) return;
+  if (!u || !u.connected) return;
   u.connected = false;
   u.ws = null;
   if (room.hostId === u.id) {
