@@ -57,3 +57,16 @@ Health Check Path:
 
 ## ディーラー設定
 ホストがロビーでディーラーをCPUまたは参加中のプレイヤーから選択できます。クライアントは `dealerId` を送信し、サーバー側で検証します。
+
+
+### Latest fixes
+- Removed repeated full-screen re-rendering of the card table during the decision countdown, which caused visible card flicker on mobile.
+- Disabled card animation/transition explicitly.
+- Replaced the previous beep-only BGM with a repeating Web Audio melody. Tap BGM ON to start it.
+
+## 最新版の変更
+- スマホの試合中はホスト設定・START・ROUND表示を自動で隠し、カード卓を優先表示します。
+- 画面端にメニュー・リスタート・退出だけを残します。
+- BET/HIT/STAND/DOUBLE DOWN操作欄は画面下部に固定し、カードが隠れにくいスマホUIにしています。
+- カードは状態が変わったときだけDOMを更新し、再描画によるちらつきを防止しています。
+- BGMはWeb Audioの簡易音ではなく、同梱の`public/bgm.wav`をループ再生します。BGMボタンはユーザー操作で開始します。
