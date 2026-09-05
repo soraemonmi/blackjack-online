@@ -447,8 +447,9 @@ function handle(ws, msg) {
     room.settings.initialCoins = Math.min(1000000, Math.max(100, Math.floor(Number(data.initialCoins) || DEFAULTS.initialCoins)));
     room.settings.minBet = Math.min(room.settings.initialCoins, Math.max(1, Math.floor(Number(data.minBet) || DEFAULTS.minBet)));
     room.settings.maxBet = Math.min(room.settings.initialCoins, Math.max(room.settings.minBet, Math.floor(Number(data.maxBet) || DEFAULTS.maxBet)));
-    if (data.dealerId === null || data.dealerId === 'cpu') room.settings.dealerId = data.dealerId === 'cpu' ? null : null;
-    else if (room.users.has(data.dealerId) && room.users.get(data.dealerId).role === 'player') room.settings.dealerId = data.dealerId;
+    const requestedDealer = data.dealerId ?? data.dealer;
+    if (requestedDealer === null || requestedDealer === undefined || requestedDealer === 'cpu') room.settings.dealerId = null;
+    else if (room.users.has(requestedDealer) && room.users.get(requestedDealer).role === 'player') room.settings.dealerId = requestedDealer;
     broadcastState(room);
     return;
   }
