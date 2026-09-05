@@ -47,6 +47,7 @@ function makeRoom(code, hostId) {
     timer: null,
     started: false,
     tournament: null,
+    cardsRevealed: false,
     log: []
   };
 }
@@ -121,7 +122,7 @@ function visibleState(room, viewer) {
     .filter(u => u.role === 'player')
     .map(u => {
       const mine = u.id === viewer.id;
-      const revealAll = isObserver || ['reveal','dealer','result'].includes(room.phase);
+      const revealAll = isObserver || room.cardsRevealed || ['reveal','dealer','result'].includes(room.phase);
       const pending = room.pendingActions.get(u.id) || { action: null, ok: false };
       return {
         id: u.id,
@@ -136,7 +137,7 @@ function visibleState(room, viewer) {
       };
     });
 
-  const dealerReveal = isObserver || dealerOwner || ['reveal','dealer','result'].includes(room.phase);
+  const dealerReveal = isObserver || dealerOwner || room.cardsRevealed || ['reveal','dealer','result'].includes(room.phase);
   return {
     type: 'state',
     roomCode: room.code,
@@ -191,6 +192,7 @@ function startRound(room) {
     return;
   }
   room.phase = 'betting';
+  room.cardsRevealed = false;
   room.round += 1;
   room.deck = createDeck();
   resetUserHands(room);
@@ -211,6 +213,7 @@ function allBet(room) {
 
 function dealInitial(room) {
   room.phase = 'decision';
+  room.cardsRevealed = false;
   for (const p of activePlayers(room).filter(u => u.chips > 0)) {
     p.hand = [draw(room), draw(room)];
     p.status = 'waiting';
@@ -241,7 +244,9 @@ function applyBet(room, id, amount) {
 function validAction(room, p, action) {
   if (room.phase !== 'decision' || p.role !== 'player' || p.id === room.settings.dealerId) return false;
   if (p.status !== 'waiting') return false;
-  return ['hit','stand','double'].includes(action);
+  if (!['hit','stand','double'].includes(action)) return false;
+  if (action === 'double' && p.hand.length !== 2) return false;
+  return true;
 }
 
 function allPlayersReady(room) {
@@ -269,19 +274,29 @@ function startDecisionTimer(room) {
 function resolveDecision(room) {
   if (room.phase !== 'decision' || !allPlayersReady(room)) return;
   clearTimeout(room.timer);
+
+  // The first collective confirmation reveals everyone's cards.
+  // A player who chose HIT remains eligible for another collective decision.
+  const wasAlreadyRevealed = room.cardsRevealed;
+  room.cardsRevealed = true;
   room.phase = 'reveal';
   broadcastState(room);
 
-  const players = activePlayers(room).filter(p => p.status === 'waiting' && p.hand.length);
+  const players = activePlayers(room).filter(p => p.hand.length && p.status === 'waiting');
+  let needsAnotherDecision = false;
   for (const p of players) {
     const entry = room.pendingActions.get(p.id) || { action: 'stand', ok: true };
     const action = entry.action || 'stand';
     if (action === 'hit') {
       p.hand.push(draw(room));
-      p.status = score(p.hand) > 21 ? 'bust' : 'stand';
+      if (score(p.hand) > 21) p.status = 'bust';
+      else {
+        p.status = 'waiting';
+        needsAnotherDecision = true;
+      }
     } else if (action === 'double') {
       const currentBet = room.betting.get(p.id) || 0;
-      if (p.hand.length === 2 && currentBet > 0 && p.chips >= currentBet * 2) {
+      if (p.hand.length === 2 && currentBet > 0 && p.chips >= currentBet) {
         room.betting.set(p.id, currentBet * 2);
         p.chips -= currentBet;
         p.hand.push(draw(room));
@@ -293,12 +308,23 @@ function resolveDecision(room) {
       p.status = 'stand';
     }
   }
+
   room.pendingActions.clear();
   room.decisionNo += 1;
   broadcastState(room);
+
+  if (needsAnotherDecision) {
+    room.phase = 'decision';
+    for (const p of activePlayers(room)) {
+      if (p.status === 'waiting' && p.hand.length) room.pendingActions.set(p.id, { action: null, ok: false });
+    }
+    broadcastState(room);
+    startDecisionTimer(room);
+    return;
+  }
+
   dealerPhase(room);
 }
-
 function dealerPhase(room) {
   room.phase = 'dealer';
   const d = dealerUser(room);
@@ -372,13 +398,14 @@ function finishRound(room) {
   broadcastState(room);
   if (room.round >= room.settings.rounds) {
     setTimeout(() => endGame(room), 3500);
-  } else if (room.settings.mode === 'normal') {
-    setTimeout(() => endGame(room), 3500);
   } else {
     setTimeout(() => {
       const alive = activePlayers(room).filter(p => p.chips > 0);
-      if (alive.length <= 1 && room.settings.mode === 'tournament') endGame(room, alive[0] ? `${alive[0].name} が優勝！` : '勝者なし');
-      else startRound(room);
+      if (alive.length <= 1 && room.settings.mode === 'tournament') {
+        endGame(room, alive[0] ? `${alive[0].name} が優勝！` : '勝者なし');
+      } else {
+        startRound(room);
+      }
     }, 3500);
   }
 }
