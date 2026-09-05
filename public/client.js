@@ -4,7 +4,7 @@ let bgm=false;
 const bgmAudio=new Audio('/bgm.mp3');
 bgmAudio.loop=true;
 bgmAudio.preload='auto';
-bgmAudio.volume=0.32;
+bgmAudio.volume=Number(localStorage.getItem('bj-bgm-volume') ?? '0.32');
 const phaseNames={lobby:'LOBBY',betting:'BETTING',decision:'選択',reveal:'一斉公開',dealer:'DEALER',result:'RESULT',gameover:'GAME OVER'};
 function toast(text){const t=$('toast');t.textContent=text;t.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove('show'),2200)}
 function send(x){if(ws?.readyState===1)ws.send(JSON.stringify(x))}
@@ -49,7 +49,11 @@ $('joinBtn').onclick=()=>{credentials={name:$('name').value.trim()||'Player',roo
 $('restartBtn').onclick=doRestart;$('matchRestartBtn').onclick=doRestart;$('leaveBtn').onclick=doLeave;$('matchLeaveBtn').onclick=doLeave;$('matchMenuBtn').onclick=()=>document.body.classList.toggle('mobile-drawer-open');$('drawerCloseBtn').onclick=()=>document.body.classList.remove('mobile-drawer-open');
 $('chatBtn').onclick=()=>{const text=$('chatInput').value.trim();if(text){send({type:'chat',text});$('chatInput').value=''}};$('chatInput').addEventListener('keydown',e=>{if(e.key==='Enter')$('chatBtn').click()});
 $('applySettings').onclick=()=>send({type:'settings',mode:$('mode').value,rounds:Number($('rounds').value),initialCoins:Number($('initialCoins').value),minBet:Number($('minBet').value),maxBet:Number($('maxBet').value),dealerId:$('dealer').value});
-$('bgmBtn').onclick=async()=>{bgm=!bgm;$('bgmBtn').textContent=bgm?'BGM ON':'BGM OFF';if(bgm)await startBgm();else stopBgm()};$('voiceBtn').onclick=()=>{voice=!voice;$('voiceBtn').textContent=voice?'VOICE ON':'VOICE OFF'};
+$('bgmBtn').onclick=async()=>{bgm=!bgm;$('bgmBtn').textContent=bgm?'BGM ON':'BGM OFF';if(bgm)await startBgm();else stopBgm()};
+const bgmVolume=$('bgmVolume'),bgmVolumeValue=$('bgmVolumeValue');
+function syncBgmVolume(){const v=Math.max(0,Math.min(100,Number(bgmVolume.value)||0));bgmAudio.volume=v/100;bgmVolumeValue.textContent=v+'%';localStorage.setItem('bj-bgm-volume',String(v/100))}
+bgmVolume.value=Math.round(bgmAudio.volume*100);syncBgmVolume();bgmVolume.oninput=syncBgmVolume;
+$('voiceBtn').onclick=()=>{voice=!voice;$('voiceBtn').textContent=voice?'VOICE ON':'VOICE OFF'};
 $('copyRoomBtn').onclick=async()=>{const code=state?.roomCode||credentials?.roomCode||'';if(!code)return;try{await navigator.clipboard.writeText(code);toast('ルームIDをコピーしました')}catch{toast(`ルームID：${code}`)}};
 document.addEventListener('click',e=>{const a=e.target.dataset.action;if(a)send({type:'action',action:a})});
 try{const c=JSON.parse(localStorage.getItem('bjCreds'));if(c?.name){credentials=c;connect()}}catch{}if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
