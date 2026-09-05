@@ -137,7 +137,7 @@ function visibleState(room, viewer) {
       };
     });
 
-  const dealerReveal = isObserver || dealerOwner || room.cardsRevealed || ['reveal','dealer','result'].includes(room.phase);
+  const dealerReveal = isObserver || dealerOwner || room.phase === 'dealer' || room.phase === 'result';
   return {
     type: 'state',
     roomCode: room.code,
