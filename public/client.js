@@ -1,7 +1,7 @@
 const $ = id => document.getElementById(id);
 let ws=null,state=null,credentials=null,reconnectTimer=null,lastPhase=null,phaseChangedAt=0,timerHandle=null,voice=true;
 let bgm=false;
-const bgmAudio=new Audio('/bgm.wav');
+const bgmAudio=new Audio('/bgm.mp3');
 bgmAudio.loop=true;
 bgmAudio.preload='auto';
 bgmAudio.volume=0.32;
