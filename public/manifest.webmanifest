@@ -1,0 +1,9 @@
+{
+  "name": "BLACKJACK ONLINE",
+  "short_name": "BJ ONLINE",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#101215",
+  "theme_color": "#0f2b23",
+  "icons": []
+}
